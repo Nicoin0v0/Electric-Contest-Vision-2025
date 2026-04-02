@@ -1,12 +1,12 @@
 # ============ 摄像头配置 ============
-CAMERA_ID = None
+CAMERA_ID = 0
 # CAMERA_ID = 1  # 摄像头设备号（Linux下通常是1，Windows下通常是0）
 CAMERA_WIDTH = 640
 CAMERA_HEIGHT = 480
-CAMERA_FPS = 30
+CAMERA_FPS = 240
 
 # ============ 识别配置 ============
-THRESHOLD_VALUE = 180  # 二值化阈值
+THRESHOLD_VALUE = 240  # 二值化阈值
 MIN_AREA = 1000  # 最小轮廓面积
 
 # ============ 串口配置 ============

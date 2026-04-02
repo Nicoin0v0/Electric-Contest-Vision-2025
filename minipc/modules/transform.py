@@ -1,5 +1,5 @@
 import numpy as np
-import config
+import modules.config as config
 
 def pixel_to_angle(pixel_x, pixel_y):
     """像素坐标 → 角度"""

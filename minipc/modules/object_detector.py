@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import config
+import modules.config as config
 
 class ObjectDetector:
     def __init__(self):
@@ -10,9 +10,38 @@ class ObjectDetector:
         self.width = 0.0
         self.height = 0.0
         
+        # --- 新增代码开始 ---
+        self.threshold_val = 180  # 默认初始阈值
+        self.trackbar_initialized = False # 标记滑动条是否已创建
+        # --- 新增代码结束 ---
+        
+    def on_trackbar_change(self, x):
+        """
+        滑动条回调函数（OpenCV要求必须有一个回调，虽然我们可以不用它，直接读值）
+        """
+        pass
+
     def detect(self, image):
         """检测目标物体并返回中心点坐标"""
         try:
+            # --- 新增代码：初始化滑动条 (只执行一次) ---
+            if not self.trackbar_initialized:
+                # 创建一个名为 'Binary' 的窗口（如果还没创建的话）
+                cv2.namedWindow('Binary', cv2.WINDOW_NORMAL)
+                
+                # 创建滑动条
+                # 参数说明: 'Threshold'(条的名字), 'Binary'(所在窗口), 
+                # self.threshold_val(初始位置), 255(最大值), self.on_trackbar_change(回调)
+                cv2.createTrackbar('Threshold', 'Binary', self.threshold_val, 255, self.on_trackbar_change)
+                
+                self.trackbar_initialized = True
+            # --- 新增代码结束 ---
+
+            # --- 新增代码：获取当前滑动条的值 ---
+            # 每次 detect 运行时，都去读取一下滑动条当前的位置
+            current_thresh = cv2.getTrackbarPos('Threshold', 'Binary')
+            # ---------------------------------------
+
             # 1. 复制图像用于绘制
             marked_image = image.copy()
             
@@ -20,7 +49,8 @@ class ObjectDetector:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             
             # 3. 二值化：检测黑色
-            _, binary = cv2.threshold(gray, config.THRESHOLD_VALUE, 255, cv2.THRESH_BINARY_INV)
+            # 【修改点】：将 config.THRESHOLD_VALUE 替换为 current_thresh
+            _, binary = cv2.threshold(gray, current_thresh, 255, cv2.THRESH_BINARY_INV)
             
             # 4. 形态学操作（去噪）
             # kernel = np.ones((5, 5), np.uint8)
@@ -60,7 +90,7 @@ class ObjectDetector:
                     area = cv2.contourArea(c)
                     
                     # 调试日志
-                    print(f'内轮廓面积：{area:.0f}')
+                    # print(f'内轮廓面积：{area:.0f}')
                     
                     # 7. 多边形拟合
                     epsilon = 0.04 * cv2.arcLength(c, True)
@@ -115,11 +145,19 @@ class ObjectDetector:
                         print(f'✓ 检测到卡片！中心: ({self.x_center:.1f}, {self.y_center:.1f})')
                     else:
                         print(f'⚠ 不是四边形（边数：{len(approx)}）')
+                        pass
                 else:
                     print('⚠ 面积不合适')
+                    pass
             else:
                 print('⚠ 未找到轮廓')
+                pass
             
+            # --- 新增代码：在图像上显示当前的阈值数值 ---
+            cv2.putText(marked_image, f'Thresh: {current_thresh}', (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            # ---------------------------------------
+
             # 显示调试窗口
             cv2.imshow('Binary', binary)
             cv2.imshow('Detection', marked_image)

@@ -1,5 +1,5 @@
-from communication.serial_comm import SerialComm
-from until.transform import pixel_to_esp32_command
+from modules.serial_comm import SerialComm
+from modules.transform import pixel_to_esp32_command
 import time
 
 class GimbalController:

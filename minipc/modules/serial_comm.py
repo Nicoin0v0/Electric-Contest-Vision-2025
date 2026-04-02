@@ -1,6 +1,6 @@
 import serial
 import time
-import config
+import modules.config as config
 
 class SerialComm:
     """上位机串口通信 - 发送角度给 ESP32"""

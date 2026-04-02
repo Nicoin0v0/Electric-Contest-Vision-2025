@@ -1,7 +1,7 @@
 import cv2
-from camera.camera_manager import CameraManager
-from detector.object_detector import ObjectDetector
-from communication.gimbal_control import GimbalController
+from modules.camera_manager import CameraManager
+from modules.object_detector import ObjectDetector
+from modules.gimbal_control import GimbalController
 import time  # ← 新增
 
 def main():

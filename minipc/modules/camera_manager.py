@@ -1,5 +1,5 @@
 import cv2
-import config
+import modules.config as config
 
 class CameraManager:
     def __init__(self):

@@ -12,6 +12,7 @@ class ObjectDetector:
         
         # --- 新增代码开始 ---
         self.threshold_val = 180  # 默认初始阈值
+        self.min_area = config.MIN_AREA  # 最小轮廓面积
         self.trackbar_initialized = False # 标记滑动条是否已创建
         # --- 新增代码结束 ---
         
@@ -33,13 +34,14 @@ class ObjectDetector:
                 # 参数说明: 'Threshold'(条的名字), 'Binary'(所在窗口), 
                 # self.threshold_val(初始位置), 255(最大值), self.on_trackbar_change(回调)
                 cv2.createTrackbar('Threshold', 'Binary', self.threshold_val, 255, self.on_trackbar_change)
-                
+                cv2.createTrackbar('MinArea', 'Binary', self.min_area, 100000, self.on_trackbar_change)
                 self.trackbar_initialized = True
             # --- 新增代码结束 ---
 
             # --- 新增代码：获取当前滑动条的值 ---
             # 每次 detect 运行时，都去读取一下滑动条当前的位置
             current_thresh = cv2.getTrackbarPos('Threshold', 'Binary')
+            current_min_area = cv2.getTrackbarPos('MinArea', 'Binary')
             # ---------------------------------------
 
             # 1. 复制图像用于绘制
@@ -88,64 +90,64 @@ class ObjectDetector:
                     inner_contours.sort(key=lambda x: cv2.contourArea(x[0]), reverse=True)
                     c, idx = inner_contours[0]
                     area = cv2.contourArea(c)
-                    
-                    # 调试日志
-                    # print(f'内轮廓面积：{area:.0f}')
-                    
-                    # 7. 多边形拟合
-                    epsilon = 0.04 * cv2.arcLength(c, True)
-                    approx = cv2.approxPolyDP(c, epsilon, True)
-                    
-                    if len(approx) == 4:
-                        # 8. 获取4个角点
-                        pts = approx.reshape(4, 2)
+                    if area > current_min_area:
+                        # 调试日志
+                        # print(f'内轮廓面积：{area:.0f}')
                         
-                        # 9. 计算两条对角线的真实交点
-                        self.x_center, self.y_center = self.get_line_intersection(
-                            pts[0], pts[2],
-                            pts[1], pts[3]
-                        )
+                        # 7. 多边形拟合
+                        epsilon = 0.04 * cv2.arcLength(c, True)
+                        approx = cv2.approxPolyDP(c, epsilon, True)
                         
-                        self.width = float(max(np.ptp(pts[:, 0]), np.ptp(pts[:, 1])))
-                        self.height = float(min(np.ptp(pts[:, 0]), np.ptp(pts[:, 1])))
-                        self.detected = True
-                        
-                        # ========== 画图 ==========
-                        # 10. 画实际轮廓（绿色）
-                        cv2.drawContours(marked_image, [c], -1, (0, 255, 0), 2)
-                        
-                        # 11. 画拟合的四边形（蓝色）
-                        cv2.polylines(marked_image, [pts], True, (255, 0, 0), 2)
-                        
-                        # 12. 画两条对角线（红色）
-                        cv2.line(marked_image,
-                                (int(pts[0][0]), int(pts[0][1])),
-                                (int(pts[2][0]), int(pts[2][1])),
-                                (0, 0, 255), 2)
-                        cv2.line(marked_image,
-                                (int(pts[1][0]), int(pts[1][1])),
-                                (int(pts[3][0]), int(pts[3][1])),
-                                (0, 0, 255), 2)
-                        
-                        # 13. 画中心点（黄色）
-                        cv2.circle(marked_image, (int(self.x_center), int(self.y_center)), 6, (0, 255, 255), -1)
-                        
-                        # 14. 画4个角点（紫色）
-                        for i, pt in enumerate(pts):
-                            cv2.circle(marked_image, (int(pt[0]), int(pt[1])), 4, (255, 0, 255), -1)
-                            cv2.putText(marked_image, str(i),
-                                       (int(pt[0]) + 5, int(pt[1]) + 5),
-                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
-                        
-                        # 15. 显示信息
-                        cv2.putText(marked_image, f'Center: ({self.x_center:.0f}, {self.y_center:.0f})',
-                                   (int(self.x_center) - 60, int(self.y_center) - 30),
-                                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                        
-                        print(f'✓ 检测到卡片！中心: ({self.x_center:.1f}, {self.y_center:.1f})')
-                    else:
-                        print(f'⚠ 不是四边形（边数：{len(approx)}）')
-                        pass
+                        if len(approx) == 4:
+                            # 8. 获取4个角点
+                            pts = approx.reshape(4, 2)
+                            
+                            # 9. 计算两条对角线的真实交点
+                            self.x_center, self.y_center = self.get_line_intersection(
+                                pts[0], pts[2],
+                                pts[1], pts[3]
+                            )
+                            
+                            self.width = float(max(np.ptp(pts[:, 0]), np.ptp(pts[:, 1])))
+                            self.height = float(min(np.ptp(pts[:, 0]), np.ptp(pts[:, 1])))
+                            self.detected = True
+                            
+                            # ========== 画图 ==========
+                            # 10. 画实际轮廓（绿色）
+                            cv2.drawContours(marked_image, [c], -1, (0, 255, 0), 2)
+                            
+                            # 11. 画拟合的四边形（蓝色）
+                            cv2.polylines(marked_image, [pts], True, (255, 0, 0), 2)
+                            
+                            # 12. 画两条对角线（红色）
+                            cv2.line(marked_image,
+                                    (int(pts[0][0]), int(pts[0][1])),
+                                    (int(pts[2][0]), int(pts[2][1])),
+                                    (0, 0, 255), 2)
+                            cv2.line(marked_image,
+                                    (int(pts[1][0]), int(pts[1][1])),
+                                    (int(pts[3][0]), int(pts[3][1])),
+                                    (0, 0, 255), 2)
+                            
+                            # 13. 画中心点（黄色）
+                            cv2.circle(marked_image, (int(self.x_center), int(self.y_center)), 6, (0, 255, 255), -1)
+                            
+                            # 14. 画4个角点（紫色）
+                            for i, pt in enumerate(pts):
+                                cv2.circle(marked_image, (int(pt[0]), int(pt[1])), 4, (255, 0, 255), -1)
+                                cv2.putText(marked_image, str(i),
+                                        (int(pt[0]) + 5, int(pt[1]) + 5),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
+                            
+                            # 15. 显示信息
+                            cv2.putText(marked_image, f'Center: ({self.x_center:.0f}, {self.y_center:.0f})',
+                                    (int(self.x_center) - 60, int(self.y_center) - 30),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                            
+                            print(f'✓ 检测到卡片！中心: ({self.x_center:.1f}, {self.y_center:.1f})')
+                        else:
+                            print(f'⚠ 不是四边形（边数：{len(approx)}）')
+                            pass
                 else:
                     print('⚠ 面积不合适')
                     pass

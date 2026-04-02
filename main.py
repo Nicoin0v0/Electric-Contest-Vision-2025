@@ -1,70 +1,55 @@
-import cv2
-from camera.camera_manager import CameraManager
-from detector.object_detector import ObjectDetector
-from communication.gimbal_control import GimbalController
+from machine import UART, Pin, PWM
+import time
 
-def main():
-    print("=" * 70)
-    print("        视觉追踪系统")
-    print("=" * 70)
-    
-    # ========== 1. 初始化摄像头 ==========
-    print("\n📷 步骤1：初始化摄像头...")
-    camera = CameraManager()
-    if not camera.open():
-        print("✗ 摄像头打开失败")
-        return
-    
-    # ========== 2. 初始化检测器 ==========
-    print("\n🔍 步骤2：初始化检测器...")
-    detector = ObjectDetector()
-    
-    # ========== 3. 初始化云台 ==========
-    print("\n🎯 步骤3：初始化云台...")
-    gimbal = GimbalController()
-    gimbal.connect()
-    
-    print("\n" + "=" * 70)
-    print("系统已就绪！按 'q' 退出，按 'c' 云台归中")
-    print("=" * 70 + "\n")
-    
-    # ========== 4. 主循环 ==========
-    while True:
-        # 读取图像
-        frame = camera.read()
-        if frame is None:
-            break
-        
-        # 检测目标
-        marked_frame = detector.detect(frame)
-        
-        # 如果检测到目标，让云台看向目标
-        if detector.detected:
-            # 调用 gimbal 的函数（所有云台逻辑都在 gimbal 里）
-            gimbal.look_at(detector.x_center, detector.y_center)
+print("=" * 50)
+print("        ESP32 云台控制系统")
+print("=" * 50)
+
+# 串口初始化
+uart = UART(1, 115200, rx=9, tx=10)
+print("✓ 串口已初始化")
+
+# 舵机初始化
+yaw_servo = PWM(Pin(12), freq=50)
+pitch_servo = PWM(Pin(11), freq=50)
+print("✓ 舵机已初始化 (YAW=GPIO12, PITCH=GPIO11)")
+
+# 角度转 duty（带限位）
+def Servo(servo, angle):
+    angle = max(-90, min(90, angle))
+    duty = int(((angle + 90) * 2 / 180 + 0.5) / 20 * 1023)
+    servo.duty(duty)
+    return duty
+
+# ========== 启动时自动归中 ==========
+print("\n🔄 舵机归中到 0 度位置...")
+Servo(yaw_servo, 0)
+Servo(pitch_servo, 0)
+time.sleep(2)  # 等待 2 秒，确保归中完成
+print("✓ 归中完成！")
+# ===================================
+
+print("\n" + "=" * 50)
+print("✓ 系统就绪，等待串口数据...")
+print("=" * 50 + "\n")
+
+while True:
+    if uart.any():
+        try:
+            data = uart.readline()
+            command = data.decode().strip()
             
-            # 在画面上显示信息
-            info_text = f"Tracking: ({detector.x_center:.0f}, {detector.y_center:.0f})"
-            cv2.putText(marked_frame, info_text, (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            if command.startswith("ANGLE:"):
+                values = command.split(":")[1].split(",")
+                yaw_angle = float(values[0])
+                pitch_angle = float(values[1])
+                
+                yaw_duty = Servo(yaw_servo, yaw_angle)
+                pitch_duty = Servo(pitch_servo, pitch_angle)
+                
+                print(f"✓ YAW={yaw_angle}°→{yaw_duty}, PITCH={pitch_angle}°→{pitch_duty}")
         
-        # 显示窗口
-        cv2.imshow('Camera', marked_frame)
-        
-        # 按键处理
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            print("\n👋 退出程序...")
-            break
-        elif key == ord('c'):
-            gimbal.center()
+        except Exception as e:
+            print(f"✗ 错误：{e}")
     
-    # ========== 5. 清理资源 ==========
-    print("\n🔧 正在关闭...")
-    gimbal.disconnect()
-    camera.release()
-    cv2.destroyAllWindows()
-    print("✓ 程序已退出")
-
-if __name__ == '__main__':
-    main()
+    time.sleep(0.01)

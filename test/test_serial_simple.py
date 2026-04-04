@@ -1,4 +1,9 @@
-from communication.serial_comm import SerialComm
+import sys
+import os
+# 添加项目根目录到路径，这样才能从 test 文件夹导入 modules
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from modules.serial_comm import SerialComm
 import time
 
 print("🔧 串口通信测试（角度模式）")

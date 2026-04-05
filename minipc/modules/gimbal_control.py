@@ -11,24 +11,13 @@ class GimbalController:
         self.last_send_time = 0
     
     def connect(self):
-        """连接云台（自动归中）"""
+        """连接云台（不自动归中）"""
         print("🔌 正在连接云台...")
         self.connected = self.serial.connect()
         
         if self.connected:
             print("✓ 云台已连接")
-            print("🔄 正在归中到 0 度位置...")
-            
-            # 发送归中角度
-            self.serial.send_angle(0, 0)
-            
-            # ========== 增加等待时间，让你能观察到 ==========
-            print("⏳ 等待 3 秒，请观察舵机是否归中...")
-            for i in range(3, 0, -1):
-                print(f"   {i}...")
-                time.sleep(1)
-            print("✓ 归中完成！")
-            # ================================================
+            # ✅ 已删除归中代码，直接返回
         else:
             print("⚠ 云台连接失败")
         
@@ -52,12 +41,6 @@ class GimbalController:
         self.last_send_time = current_time
         
         print(f"→ 发送角度：PAN={result['pan_angle']:.1f}°, TILT={result['tilt_angle']:.1f}°")
-    
-    def center(self):
-        """云台归中"""
-        if self.connected:
-            self.serial.send_angle(0, 0)
-            print("🔄 云台归中")
     
     def disconnect(self):
         """断开连接"""

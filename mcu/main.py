@@ -1,55 +1,82 @@
 from machine import UART, Pin, PWM
 import time
 
-print("=" * 50)
-print("        ESP32 云台控制系统")
-print("=" * 50)
-
 # 串口初始化
 uart = UART(1, 115200, rx=9, tx=10)
-print("✓ 串口已初始化")
 
 # 舵机初始化
-yaw_servo = PWM(Pin(12), freq=50)
-pitch_servo = PWM(Pin(11), freq=50)
-print("✓ 舵机已初始化 (YAW=GPIO12, PITCH=GPIO11)")
+yaw_servo = PWM(Pin(11), freq=50)
+pitch_servo = PWM(Pin(12), freq=50)
 
-# 角度转 duty（带限位）
+# 角度转 duty
 def Servo(servo, angle):
     angle = max(-90, min(90, angle))
     duty = int(((angle + 90) * 2 / 180 + 0.5) / 20 * 1023)
     servo.duty(duty)
     return duty
 
-# ========== 启动时自动归中 ==========
-print("\n🔄 舵机归中到 0 度位置...")
-Servo(yaw_servo, 0)
-Servo(pitch_servo, 0)
-time.sleep(2)  # 等待 2 秒，确保归中完成
-print("✓ 归中完成！")
-# ===================================
+# 当前位置 & 目标位置
+current_yaw = 0.0
+current_pitch = 0.0
+target_yaw = 0.0
+target_pitch = 0.0
 
-print("\n" + "=" * 50)
-print("✓ 系统就绪，等待串口数据...")
-print("=" * 50 + "\n")
+# ========== 分段线性控制参数 (已调优防抽动) ==========
+THRESH_FAST = 30.0
+THRESH_MID  = 10.0
+DEADBAND    = 1.2   # 覆盖舵机机械虚位与轻微抖动，避免反复微调
+
+# YAW轴
+KP_YAW_FAST = 0.85
+KP_YAW_MID  = 0.45
+KP_YAW_SLOW = 0.18  # 提升保持力，消除"漂移-慢补"现象
+
+# PITCH轴
+KP_PITCH_FAST = 0.5
+KP_PITCH_MID  = 0.3
+KP_PITCH_SLOW = 0.15
+
+MAX_STEP = 1.5      # 略放宽防快速段卡顿
+# ================================================
+
+# ✅ 已删除开机归中代码，直接等待信号
+print("✓ 系统就绪 (分段线性控制，取消开机归中)")
 
 while True:
     if uart.any():
         try:
             data = uart.readline()
+            if data is None: continue
             command = data.decode().strip()
             
             if command.startswith("ANGLE:"):
                 values = command.split(":")[1].split(",")
-                yaw_angle = float(values[0])
-                pitch_angle = float(values[1])
+                # 使用 -= 累加（相对运动模式）
+                target_yaw -= float(values[0])
+                target_pitch -= float(values[1])
                 
-                yaw_duty = Servo(yaw_servo, yaw_angle)
-                pitch_duty = Servo(pitch_servo, pitch_angle)
+                target_yaw = max(-90.0, min(90.0, target_yaw))
+                target_pitch = max(-90.0, min(90.0, target_pitch))
                 
-                print(f"✓ YAW={yaw_angle}°→{yaw_duty}, PITCH={pitch_angle}°→{pitch_duty}")
-        
         except Exception as e:
-            print(f"✗ 错误：{e}")
+            print(f"Err: {e}")
     
+    # ── YAW轴 ──
+    err_yaw = target_yaw - current_yaw
+    if abs(err_yaw) > DEADBAND:
+        kp = KP_YAW_FAST if abs(err_yaw) > THRESH_FAST else (KP_YAW_MID if abs(err_yaw) > THRESH_MID else KP_YAW_SLOW)
+        step = max(-MAX_STEP, min(MAX_STEP, err_yaw * kp))
+        current_yaw += step
+        current_yaw = max(-90.0, min(90.0, current_yaw))
+        Servo(yaw_servo, current_yaw)
+        
+    # ── PITCH轴 ──
+    err_pitch = target_pitch - current_pitch
+    if abs(err_pitch) > DEADBAND:
+        kp = KP_PITCH_FAST if abs(err_pitch) > THRESH_FAST else (KP_PITCH_MID if abs(err_pitch) > THRESH_MID else KP_PITCH_SLOW)
+        step = max(-MAX_STEP, min(MAX_STEP, err_pitch * kp))
+        current_pitch += step
+        current_pitch = max(-90.0, min(90.0, current_pitch))
+        Servo(pitch_servo, current_pitch)
+        
     time.sleep(0.01)

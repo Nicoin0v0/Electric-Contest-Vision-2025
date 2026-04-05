@@ -88,12 +88,48 @@ class ObjectDetector:
         return float(x), float(y)
 
     def _draw_contours(self, image, contour, pts):
+        """绘制检测框、对角线、角点及中心"""
+        # 1. 画实际轮廓（绿色）
         cv2.drawContours(image, [contour], -1, (0, 255, 0), 2)
+        
+        # 2. 画拟合的四边形（蓝色）
         cv2.polylines(image, [pts], True, (255, 0, 0), 2)
+        
+        # 3. 画两条对角线（红色）
+        cv2.line(image, 
+                 (int(pts[0][0]), int(pts[0][1])), 
+                 (int(pts[2][0]), int(pts[2][1])), 
+                 (0, 0, 255), 2)
+        cv2.line(image, 
+                 (int(pts[1][0]), int(pts[1][1])), 
+                 (int(pts[3][0]), int(pts[3][1])), 
+                 (0, 0, 255), 2)
+        
+        # 4. 画目标中心点（黄色）—— 这是算出来的坐标
         cv2.circle(image, (int(self.x_center), int(self.y_center)), 6, (0, 255, 255), -1)
-        cv2.putText(image, f'Target', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(image, f'({self.x_center:.0f}, {self.y_center:.0f})', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-    
+        
+        # 5. 画4个角点（紫色）并标序号 
+        for i, pt in enumerate(pts):
+            cv2.circle(image, (int(pt[0]), int(pt[1])), 4, (255, 0, 255), -1)
+            cv2.putText(image, str(i), 
+                        (int(pt[0]) + 5, int(pt[1]) + 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
+
+        # ========== 新增：画图像中心点（白色） ==========
+        h, w, _ = image.shape
+        center_x, center_y = w // 2, h // 2
+        
+        # 画一个白色实心点
+        cv2.circle(image, (center_x, center_y), 3, (255, 255, 255), -1)
+        # 画一个白色空心圈，方便对比偏移量
+        cv2.circle(image, (center_x, center_y), 10, (255, 255, 255), 1)
+        # ============================================
+        
+        # 6. 显示目标信息
+        cv2.putText(image, f'Target', (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        cv2.putText(image, f'({self.x_center:.0f}, {self.y_center:.0f})',
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
     def get_data(self):
         return {
             'x': self.x_center, 'y': self.y_center,

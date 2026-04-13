@@ -1,5 +1,5 @@
 # ============ 摄像头配置 ============
-CAMERA_ID = 0
+CAMERA_ID = None  # 摄像头设备号，None表示自动选择
 # CAMERA_ID = 1  # 摄像头设备号（Linux下通常是1，Windows下通常是0）
 CAMERA_WIDTH = 640
 CAMERA_HEIGHT = 480

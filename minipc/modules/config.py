@@ -5,9 +5,9 @@ CAMERA_WIDTH = 640
 CAMERA_HEIGHT = 480
 
 # ============ 识别配置 ============
-THRESHOLD_VALUE = 240  # 二值化阈值
-MIN_AREA = 1000        # 最小轮廓面积
-MAX_AREA = 10000       # 最大轮廓面积
+THRESHOLD_VALUE = 100  # 二值化阈值
+MIN_AREA = 18750        # 最小轮廓面积
+MAX_AREA = 210000      # 最大轮廓面积
 
 # ============ 串口配置 ============
 SERIAL_PORT = 'COM6'   # 请修改成你的实际串口号（如COM3、COM4）

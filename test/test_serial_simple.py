@@ -1,8 +1,19 @@
 import sys
 import os
-# 添加项目根目录到路径，这样才能从 test 文件夹导入 modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 1. 获取当前文件 (test_serial_simple.py) 的绝对路径
+current_file = os.path.abspath(__file__)
+# 2. 获取所在文件夹 (test)
+test_dir = os.path.dirname(current_file)
+# 3. 获取上一级文件夹 (camera_detector)
+root_dir = os.path.dirname(test_dir)
+# 4. 拼接 minipc 文件夹的路径 (因为 modules 在 minipc 里面)
+minipc_path = os.path.join(root_dir, 'minipc')
+
+# 5. 将 minipc 路径加入到系统路径的最前面
+sys.path.insert(0, minipc_path)
+
+# 现在就可以正常导入了
 from modules.serial_comm import SerialComm
 import time
 

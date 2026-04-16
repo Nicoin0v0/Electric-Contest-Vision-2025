@@ -4,14 +4,14 @@ import modules.config as config
 from modules.camera_manager import CameraManager
 from modules.object_detector import ObjectDetector
 from modules.gimbal_control import GimbalController
-from modules.ui_control import UIControl  # 1. 导入 UI 控制模块
+from modules.ui_control import UIControl
 
 def main():
     print("=" * 70)
     print("        视觉追踪系统 v2.0 (带滑动条调试)")
     print("=" * 70)
     
-    # ========== 1. 初始化各模块 ==========
+    # 1. 初始化各模块
     print("\n📷 初始化摄像头...")
     camera = CameraManager()
     if not camera.open():
@@ -25,10 +25,10 @@ def main():
     gimbal = GimbalController()
     gimbal.connect()
     
-    # ✅ 2. 初始化 UI 控制面板（滑动条）
+    # 2. 初始化 UI 控制面板
     print("🎛️  初始化控制面板...")
     ui = UIControl()
-    ui.create_trackbars('Controls')  # 这会弹出一个叫 Controls 的窗口
+    ui.create_trackbars('Controls')
     
     print("\n" + "=" * 70)
     print("系统已就绪！")
@@ -39,22 +39,20 @@ def main():
     time.sleep(2)
     print("▶ 开始运行！\n")
     
-    # ========== 3. 主循环 ==========
+    # 3. 主循环
     while True:
         frame = camera.read()
         if frame is None:
             break
         
-        # ✅ 3. 从滑动条获取最新参数，并同步给检测器
+        # 获取参数并同步给检测器
         thresh, min_area, max_area = ui.get_values()
         detector.update_params(thresh, min_area, max_area)
         
-        # ✅ 4. 执行检测（注意：现在接收两个返回值！）
-        # marked_frame: 画了框的图
-        # binary: 二值化黑白图
+        # 执行检测
         marked_frame, binary = detector.detect(frame)
         
-        # ✅ 5. 云台控制
+        # 云台控制与状态提示
         if detector.detected:
             gimbal.look_at(detector.x_center, detector.y_center)
             cv2.putText(marked_frame, f"Tracking: ({detector.x_center:.0f}, {detector.y_center:.0f})", 
@@ -63,22 +61,21 @@ def main():
             cv2.putText(marked_frame, "Searching...", (10, 30), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
         
-        # ✅ 6. 图像拼接与显示
+        # 图像拼接
         if binary is not None:
-            # 将二值化图调整到与主图相同高度，方便拼接
-            # 注意：binary 是单通道灰度图，需要转成 BGR 三通道才能和 marked_frame 拼接
             binary_resized = cv2.resize(binary, (marked_frame.shape[1], marked_frame.shape[0]))
             binary_bgr = cv2.cvtColor(binary_resized, cv2.COLOR_GRAY2BGR)
-            
-            # 上下拼接：上面是检测结果，下面是二值化原图
             display_frame = cv2.vconcat([marked_frame, binary_bgr])
         else:
             display_frame = marked_frame
             
-        # 显示拼接后的大图
+        # 显示主画面
         cv2.imshow('Vision System', display_frame)
         
-        # ✅ 7. 按键响应
+        # 📌 关键补充：刷新滑动条面板（自绘控件必须手动调用 imshow 才能显示与交互）
+        ui.show()
+        
+        # 按键响应
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             print("\n👋 退出程序...")
@@ -87,9 +84,9 @@ def main():
             print("🔄 云台归中")
             gimbal.center()
     
-    # ========== 4. 清理资源 ==========
+    # 4. 清理资源
     print("\n🔧 正在关闭硬件...")
-    ui.destroy()          # 关闭滑动条窗口
+    ui.destroy()
     gimbal.disconnect()
     camera.release()
     cv2.destroyAllWindows()

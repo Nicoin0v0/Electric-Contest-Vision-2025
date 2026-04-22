@@ -35,75 +35,77 @@ class ObjectDetector:
             self.max_area = max_area
 
     def detect(self, image):
-        """执行检测，返回(标记图, 二值图)"""
         try:
             marked_image = image.copy()
             
-            # 1. 高斯模糊降噪
+            # 1. 高斯模糊
             blurred = cv2.GaussianBlur(image, (self.blur_ksize, self.blur_ksize), 0)
             gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
             
-            # 2. 二值化
+            # 2. 二值化（灰度逻辑）
             _, binary = cv2.threshold(gray, self.threshold_val, 255, cv2.THRESH_BINARY_INV)
             
-            # 3. 闭运算：填补空洞、连接断裂
+            # 3. 闭运算
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (self.close_kernel_size, self.close_kernel_size))
             closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=self.close_iterations)
             
-            # 4. 轮廓提取
-            contours, hierarchy = cv2.findContours(closed, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            # 4. 轮廓提取（改用 RETR_CCOMP，匹配参考代码）
+            contours, hierarchy = cv2.findContours(closed, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
             
-            # 重置状态
+            # 重置状态（放在检测开始前）
             self.detected = False
             self.x_center = 0.0
             self.y_center = 0.0
             
             if hierarchy is not None:
                 hierarchy = hierarchy[0]
+                
+                # 父子轮廓降级策略
                 inner_contours = []
-                
-                # 5. 筛选内轮廓（父子关系）
                 for i, contour in enumerate(contours):
-                    if i < len(hierarchy):
-                        parent_idx = hierarchy[i][3]
-                        if parent_idx != -1: 
-                            inner_contours.append((contour, i))
+                    if i < len(hierarchy) and hierarchy[i][3] != -1:
+                        inner_contours.append((i, contour))
                 
-                if inner_contours:
-                    # 6. 取最大内轮廓
-                    inner_contours.sort(key=lambda x: cv2.contourArea(x[0]), reverse=True)
-                    c, idx = inner_contours[0]
-                    area = cv2.contourArea(c)
+                # 如果没有内轮廓，则使用外轮廓（无父轮廓的轮廓）
+                target_contours = inner_contours if inner_contours else \
+                    [(i, c) for i, c in enumerate(contours) if i < len(hierarchy) and hierarchy[i][3] == -1]
+                
+                # 按面积降序排序（保证优先处理最大轮廓，匹配参考代码最终取 max 的效果）
+                target_contours.sort(key=lambda x: cv2.contourArea(x[1]), reverse=True)
+                
+                # 遍历候选轮廓
+                for i, contour in target_contours:
+                    area = cv2.contourArea(contour)
                     
-                    # 7. 面积过滤
+                    # 面积过滤
                     if self.min_area < area < self.max_area:
-                        # 8. 多边形近似：提取4个角点
-                        epsilon = 0.04 * cv2.arcLength(c, True)
-                        approx = cv2.approxPolyDP(c, epsilon, True)
+                        epsilon = 0.02 * cv2.arcLength(contour, True)
+                        approx = cv2.approxPolyDP(contour, epsilon, True)
                         
                         if len(approx) == 4:
                             pts = approx.reshape(4, 2)
                             
-                            # 9. 角点排序：固定为[左上,右上,右下,左下]
+                            # 角点排序
                             s = pts.sum(axis=1)
                             diff = pts[:, 0] - pts[:, 1]
                             rect = np.zeros((4, 2), dtype=np.int32)
-                            rect[0] = pts[np.argmin(s)]   # 左上
-                            rect[2] = pts[np.argmax(s)]   # 右下
-                            rect[1] = pts[np.argmax(diff)]  # 右上
-                            rect[3] = pts[np.argmin(diff)]  # 左下
+                            rect[0] = pts[np.argmin(s)]
+                            rect[2] = pts[np.argmax(s)]
+                            rect[1] = pts[np.argmax(diff)]
+                            rect[3] = pts[np.argmin(diff)]
                             pts = rect
                             
-                            # 10. 计算中心点（对角线交点）和尺寸
-                            self.x_center, self.y_center = self._get_intersection(
-                                pts[0], pts[2], pts[1], pts[3])
+                            # 计算中心与尺寸
+                            self.x_center, self.y_center = self._get_intersection(pts[0], pts[2], pts[1], pts[3])
                             self.width = float(max(np.ptp(pts[:, 0]), np.ptp(pts[:, 1])))
                             self.height = float(min(np.ptp(pts[:, 0]), np.ptp(pts[:, 1])))
                             self.detected = True
                             
-                            # 11. 绘制结果
-                            self._draw_contours(marked_image, c, pts)
+                            # 绘制结果并退出（找到第一个符合条件的最大轮廓就停）
+                            self._draw_contours(marked_image, contour, pts)
+                            break
             
+            # 确保返回 closed 供主程序显示二值图
             return marked_image, closed
             
         except Exception as e:

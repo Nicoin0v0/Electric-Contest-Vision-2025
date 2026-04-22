@@ -20,7 +20,7 @@ class UIControl:
                 break
         self.font = ImageFont.truetype(self.font_path, 16) if self.font_path else ImageFont.load_default()
         
-        # 📌 滑动条配置：完全从 config 读取
+        # 滑动条配置：完全从 config 读取
         self.sliders = {}
         self._add_slider('Threshold', 0, config.THRESHOLD_MAX, config.THRESHOLD_VALUE, 45)
         self._add_slider('MinArea',   0, config.MIN_AREA_TRACKBAR_MAX, config.MIN_AREA, 85)
@@ -39,7 +39,7 @@ class UIControl:
     def create_trackbars(self, window_name='Controls'):
         self.window_name = window_name
         if not self.initialized:
-            # 🛑 关键修复：改用 AUTOSIZE，禁止窗口缩放，保证 PIL 像素级渲染
+            # 关键修复：改用 AUTOSIZE，禁止窗口缩放，保证 PIL 像素级渲染
             cv2.namedWindow(self.window_name, cv2.WINDOW_AUTOSIZE)
             cv2.setMouseCallback(self.window_name, self._on_mouse)
             self._redraw()
@@ -73,7 +73,7 @@ class UIControl:
         return int(s["min"] + ratio * (s["max"] - s["min"]))
 
     def _redraw(self):
-        """📌 严格复用测试代码的成功渲染逻辑"""
+        """严格复用测试代码的成功渲染逻辑"""
         img_pil = Image.fromarray(self.canvas)
         draw = ImageDraw.Draw(img_pil)
         

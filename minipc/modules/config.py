@@ -25,6 +25,6 @@ MIN_AREA_TRACKBAR_MAX = 100000   # 最小面积滑动条上限
 MAX_AREA_TRACKBAR_MAX = 500000   # 最大面积滑动条上限
 
 # ============预处理参数============
-GAUSSIAN_BLUR_KSIZE = 5          # 高斯模糊核大小（必须为奇数）
+GAUSSIAN_BLUR_KSIZE = 3          # 高斯模糊核大小（必须为奇数）
 MORPH_CLOSE_KERNEL_SIZE = 3      # 闭运算核大小
-MORPH_CLOSE_ITERATIONS = 2       # 闭运算迭代次数
+MORPH_CLOSE_ITERATIONS = 1       # 闭运算迭代次数

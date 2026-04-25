@@ -35,7 +35,7 @@ KALMAN_PROCESS_NOISE_VEL = 0.1   # 速度的过程噪声
 
 # R矩阵参数（观测噪声）
 # 设小一点：检测到时更相信视觉，减少平滑滞后
-KALMAN_MEASUREMENT_NOISE = 0.5   
+KALMAN_MEASUREMENT_NOISE = 0.2   
 
 # 初始误差协方差
 KALMAN_INITIAL_ERROR_COV = 100.0

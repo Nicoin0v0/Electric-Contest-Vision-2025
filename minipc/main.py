@@ -3,94 +3,94 @@ import time
 import modules.config as config
 from modules.camera_manager import CameraManager
 from modules.object_detector import ObjectDetector
-from modules.gimbal_control import GimbalController
+from modules.tracker import Tracker, Status
+from modules.serial_comm import SerialComm
 from modules.ui_control import UIControl
 
 def main():
     print("=" * 70)
-    print("        视觉追踪系统 v2.0 (带滑动条调试)")
+    print("        视觉追踪系统")
     print("=" * 70)
-    
-    # 1. 初始化各模块
-    print("\n📷 初始化摄像头...")
+
+    # 初始化
+    print("\n 初始化摄像头...")
     camera = CameraManager()
-    if not camera.open():
-        print("✗ 摄像头打开失败")
-        return
+    if not camera.open(): return
     
-    print("🔍 初始化检测器...")
+    print(" 初始化检测器...")
     detector = ObjectDetector()
     
-    print("🎯 初始化云台...")
-    gimbal = GimbalController()
-    gimbal.connect()
+    print(" 初始化 Tracker...")
+    tracker = Tracker()
     
-    # 2. 初始化 UI 控制面板
-    print("🎛️  初始化控制面板...")
+    print(" 初始化串口通信...")
+    serial = SerialComm()
+    if not serial.connect(): return
+    
+    print("  初始化控制面板...")
     ui = UIControl()
     ui.create_trackbars('Controls')
     
-    print("\n" + "=" * 70)
-    print("系统已就绪！")
-    print("💡 提示：拖动 'Controls' 窗口滑动条可实时调整检测参数")
-    print("按 'q' 退出，按 'c' 云台归中")
+    print("\n 系统已就绪！按 'q' 退出")
     print("=" * 70 + "\n")
-    
-    time.sleep(2)
-    print("▶ 开始运行！\n")
-    
-    # 3. 主循环
+
+    #放在 while True: 之前（仅初始化一次）
+    frame_cnt = 0
+    last_printed_status = None  # 运行时状态变量，记录上次打印的状态，防丢失时刷屏
+
     while True:
         frame = camera.read()
-        if frame is None:
-            break
+        if frame is None: break
         
-        # 获取参数并同步给检测器
         thresh, min_area, max_area = ui.get_values()
         detector.update_params(thresh, min_area, max_area)
-        
-        # 执行检测
         marked_frame, binary = detector.detect(frame)
+        detect_px = (detector.x_center, detector.y_center) if detector.detected else None
         
-        # 云台控制与状态提示
-        if detector.detected:
-            gimbal.look_at(detector.x_center, detector.y_center)
-            cv2.putText(marked_frame, f"Tracking: ({detector.x_center:.0f}, {detector.y_center:.0f})", 
-                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        else:
-            cv2.putText(marked_frame, "Searching...", (10, 30), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-        
-        # 图像拼接
+        #  Tracker 处理
+        yaw, pitch, status = tracker.process(detect_px)
+
+        # 1 串口发送（始终执行，不受打印开关影响）
+        if status != Status.LOST:
+            serial.send_angle(yaw, pitch)
+
+        # 2 终端打印（受 config 控制，按你的要求：检测时持续发，丢失只发一次）
+        if config.ENABLE_DEBUG_PRINT:
+            if status != Status.LOST:
+                send_px = tracker.get_filtered_position()
+                coord_str = f"({send_px[0]:.0f}, {send_px[1]:.0f})" if send_px else "N/A"
+                
+                frame_cnt += 1
+                if frame_cnt % config.PRINT_SKIP_FRAMES == 0:
+                    print(f"[{status.name}] 坐标: {coord_str} -> 角度: yaw={yaw:6.2f}°, pitch={pitch:6.2f}°")
+            else:
+                # 丢失时：仅当状态首次变为 LOST 时打印一次
+                if last_printed_status != Status.LOST:
+                    print(f"[{status.name}] 目标丢失，暂停发送。等待重新识别...")
+                    last_printed_status = status
+
+        # 3 画面显示（保持不变）
+        debug_frame = tracker.draw_debug(marked_frame, detect_px)
         if binary is not None:
-            binary_resized = cv2.resize(binary, (marked_frame.shape[1], marked_frame.shape[0]))
+            binary_resized = cv2.resize(binary, (debug_frame.shape[1], debug_frame.shape[0]))
             binary_bgr = cv2.cvtColor(binary_resized, cv2.COLOR_GRAY2BGR)
-            display_frame = cv2.vconcat([marked_frame, binary_bgr])
+            display_frame = cv2.vconcat([debug_frame, binary_bgr])
         else:
-            display_frame = marked_frame
+            display_frame = debug_frame
             
-        # 显示主画面
         cv2.imshow('Vision System', display_frame)
-        
-        # 📌 关键补充：刷新滑动条面板（自绘控件必须手动调用 imshow 才能显示与交互）
         ui.show()
         
-        # 按键响应
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
-            print("\n👋 退出程序...")
+            print("\n👋 退出")
             break
-        elif key == ord('c'):
-            print("🔄 云台归中")
-            gimbal.center()
     
-    # 4. 清理资源
-    print("\n🔧 正在关闭硬件...")
+    #  清理
+    serial.disconnect()
     ui.destroy()
-    gimbal.disconnect()
     camera.release()
     cv2.destroyAllWindows()
-    print("✓ 程序已安全退出")
 
 if __name__ == '__main__':
     main()

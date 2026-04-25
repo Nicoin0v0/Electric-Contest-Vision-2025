@@ -54,20 +54,6 @@ class SerialComm:
             print(f"❌ 发送失败：{e}")
             return False
 
-    # ========== 旧版文本格式（已停用，保留参考） ==========
-    # def send_angle(self, pan_angle, tilt_angle):
-    #     """【旧版】发送文本格式 (如 ANGLE:3.14,-2.56\n)"""
-    #     if self.ser is None or not self.ser.is_open:
-    #         print("❌ 串口未打开")
-    #         return False
-    #     try:
-    #         command = f"ANGLE:{pan_angle:.1f},{tilt_angle:.1f}\n"
-    #         self.ser.write(command.encode('utf-8'))
-    #         return True
-    #     except Exception as e:
-    #         print(f"❌ 发送失败：{e}")
-    #         return False
-
     def disconnect(self):
         """关闭串口"""
         if self.ser and self.ser.is_open:

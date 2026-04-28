@@ -1,6 +1,7 @@
 # tracker.py
 import cv2
 import numpy as np
+import math
 from . import config
 from enum import IntEnum
 from .kalman import KalmanFilter
@@ -15,10 +16,36 @@ class Tracker:
     def __init__(self):
         self.kf = KalmanFilter()           
         self.status = Status.LOST          
-        self._last_kf_px = None            
+        self._last_kf_px = None          
 
+
+    def _estimate_distance_cm(self, target_pixel_height=None):
+        """
+        🔑 根据目标像素高度反推距离 (小孔成像原理)
+        参数:
+            target_pixel_height: 靶子在图像里的像素高度 (如 100)
+        返回:
+            距离 (单位：厘米)
+        """
+        # 1. 参数保护：没高度或高度太小，返回保底距离
+        if target_pixel_height is None or target_pixel_height < 10:
+            return config.DIST_EST_DEFAULT_CM  # 如 200cm
+        
+        # 2. 核心公式：D = (H × f) ÷ h_px
+        H = config.TARGET_REAL_HEIGHT_CM      # 靶子真实高度 (21cm)
+        f = config.FOCAL_LENGTH_Y             # 焦距像素 (640)
+        h_px = target_pixel_height            # 检测到的像素高度
+        
+        dist = (H * f) / h_px
+        
+        # 3. 限幅保护：防止异常值（如检测出错导致 h_px=1）
+        dist = min(dist, 500.0)   # 最大 5 米
+        dist = max(dist, 20.0)    # 最小 20cm
+        
+        return dist
+        
     def process(self, detect_px=None):
-        # 🔒 核心修复：如果已经是 LOST 且没检测到，直接拦截，防止 kf 重置导致状态跳变
+        # 核心修复：如果已经是 LOST 且没检测到，直接拦截，防止 kf 重置导致状态跳变
         if self.status == Status.LOST and detect_px is None:
             return 0.0, 0.0, self.status
 
@@ -54,6 +81,7 @@ class Tracker:
             return frame
         
         vis = frame.copy()
+        cv2.circle(vis, (int(config.CENTER_X), int(config.CENTER_Y)), 4, (0, 0, 255), -1)
         
         # 1. 画卡尔曼预测点（蓝色十字）
         if self._last_kf_px is not None:

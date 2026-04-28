@@ -42,8 +42,10 @@ def main():
         frame = camera.read()
         if frame is None: break
         
-        thresh, min_area, max_area = ui.get_values()
-        detector.update_params(thresh, min_area, max_area)
+        thresh, min_area, max_area, otsu_val = ui.get_values()
+        # 传给 detector（otsu_val 是 0 或 1，转成布尔值）
+        detector.update_params(thresh, min_area, max_area, use_otsu=bool(otsu_val))
+        marked_frame, binary = detector.detect(frame)
         marked_frame, binary = detector.detect(frame)
         detect_px = (detector.x_center, detector.y_center) if detector.detected else None
         

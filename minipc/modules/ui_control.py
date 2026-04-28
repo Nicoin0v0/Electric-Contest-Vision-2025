@@ -11,7 +11,7 @@ class UIControl:
         self.canvas = np.zeros((self.height, self.width, 3), dtype=np.uint8)
         self.dragging = None
         
-        # 字体加载（与测试代码完全一致）
+        # 字体加载
         self.font_path = None
         for p in ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
                   "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"]:
@@ -25,6 +25,9 @@ class UIControl:
         self._add_slider('Threshold', 0, config.THRESHOLD_MAX, config.THRESHOLD_VALUE, 45)
         self._add_slider('MinArea',   0, config.MIN_AREA_TRACKBAR_MAX, config.MIN_AREA, 85)
         self._add_slider('MaxArea',   0, config.MAX_AREA_TRACKBAR_MAX, config.MAX_AREA, 125)
+        self._add_slider('OTSU', 0, 1, 1 if config.USE_OTSU_DEFAULT else 0, 165)
+        self.height = 200
+        self.canvas = np.zeros((self.height, self.width, 3), dtype=np.uint8)  #重新创建画布
         
         self.initialized = False
 
@@ -97,7 +100,8 @@ class UIControl:
         return (
             self.sliders['Threshold']['val'],
             self.sliders['MinArea']['val'],
-            self.sliders['MaxArea']['val']
+            self.sliders['MaxArea']['val'],
+            self.sliders['OTSU']['val']
         )
 
     def destroy(self):

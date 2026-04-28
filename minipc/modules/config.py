@@ -49,15 +49,10 @@ TRACKER_DRAW_DEBUG = True       # 是否显示黄蓝点调试画面
 PRINT_SKIP_FRAMES = 3          # 检测到目标时，每隔几帧打印一次 (1=每帧, 3≈0.1秒, 5≈0.17秒)
 ENABLE_DEBUG_PRINT = True      # 是否开启终端坐标/角度打印 (True/False)
 
-# ========== 激光视差补偿参数 (物理层) ==========
-LASER_PHYS_OFFSET_X_CM = 0.0   # 激光笔相对相机光心水平偏移 (cm)，右正左负
-LASER_PHYS_OFFSET_Y_CM = 0.0   # 激光笔相对相机光心垂直偏移 (cm)，上正下负
-
-# ========== 距离估计参数 (动态补偿用) ==========
-TARGET_REAL_HEIGHT_CM = 21.0   # 靶子真实物理高度 (cm)，A4纸短边
-ENABLE_DIST_ESTIMATION = True  # 是否启用动态距离估计
-DIST_EST_DEFAULT_CM = 200.0    # 估计失败时的保底距离 (cm)
-
-# ========== 兼容旧参数 (备用/盲调用) ==========
-TRACKER_LASER_OFFSET_X = 0.0   # 固定像素补偿X (动态关闭时使用)
-TRACKER_LASER_OFFSET_Y = 0.0   # 固定像素补偿Y (动态关闭时使用)
+# ============ 距离估计参数 (激光模式核心) ============
+TARGET_REAL_HEIGHT_CM = 21.0    # 短边真实高度(cm)
+ENABLE_DIST_ESTIMATION = True   # 动态测距开关
+DIST_EST_DEFAULT_CM = 200.0     # 测距失败/关闭时的保底距离(cm)
+LASER_PHYS_OFFSET_X_CM = 0.0    # 激光器相对于摄像头的水平物理偏移(cm)，正值表示激光在右侧，负值表示在左侧
+LASER_PHYS_OFFSET_Y_CM = 0.0    # 激光器相对于摄像头的垂直物理偏移(cm)，正值表示激光在下方，负值表示在上方
+USE_LASER_MODE = False  # False=纯相机角度 / True=开启激光视差补偿
